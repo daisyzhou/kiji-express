@@ -41,6 +41,8 @@ import org.kiji.express.flow.framework.KijiTap
 import org.kiji.express.flow.framework.LocalKijiTap
 import org.kiji.express.flow.util.AvroTupleConversions
 import org.kiji.express.flow.util.PipeConversions
+import org.apache.hadoop.security.UserGroupInformation
+import org.apache.hadoop.hbase.security.token.TokenUtil
 
 /**
  * KijiJob is KijiExpress's extension of Scalding's `Job`, and users should extend it when writing
@@ -66,7 +68,9 @@ class KijiJob(args: Args = Args(Nil))
     var conf: Configuration = HBaseConfiguration.create()
     implicitly[Mode] match {
       case Hdfs(_, configuration) => {
-        conf = configuration
+        HBaseConfiguration.merge(conf, configuration)
+        val user = UserGroupInformation.getCurrentUser
+        TokenUtil.obtainAndCacheToken(conf, user)
       }
       case HadoopTest(configuration, _) => {
         conf = configuration
