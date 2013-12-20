@@ -814,8 +814,8 @@ class KijiSourceSuite extends KijiSuite {
         .withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
 
     @transient val outputSpec = QualifiedColumnOutputSpec.builder.
-      withFamily("family").
-      withQualifier("simple").
+      withFamily("simpleout").
+      withQualifier("test").
       withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
 
     val jobTest = JobTest(new SpecificSchemaIdentityJob(_))
@@ -1140,11 +1140,6 @@ object KijiSourceSuite {
       .withQualifier("simple")
       .withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
 
-    @transient val outputSpec = QualifiedColumnOutputSpec.builder.
-      withFamily("family").
-      withQualifier("simple").
-      withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
-
     KijiInput.builder
       .withTableURI(args("table"))
       .withColumnSpecs(inputSpec -> 'simpleRecord)
@@ -1153,7 +1148,7 @@ object KijiSourceSuite {
           records.head.datum }
       .write(KijiOutput.builder
           .withTableURI(args("table"))
-          .withColumnSpecs('simpleRecordHead -> outputSpec)
+          .withColumns('simpleRecordHead -> "simpleout:test")
           .build)
   }
 }
