@@ -1140,6 +1140,11 @@ object KijiSourceSuite {
       .withQualifier("simple")
       .withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
 
+    @transient val outputSpec = QualifiedColumnOutputSpec.builder.
+      withFamily("simpleout").
+      withQualifier("test").
+      withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
+
     KijiInput.builder
       .withTableURI(args("table"))
       .withColumnSpecs(inputSpec -> 'simpleRecord)
@@ -1148,7 +1153,7 @@ object KijiSourceSuite {
           records.head.datum }
       .write(KijiOutput.builder
           .withTableURI(args("table"))
-          .withColumns('simpleRecordHead -> "simpleout:test")
+          .withColumnSpecs('simpleRecordHead -> outputSpec)
           .build)
   }
 }
