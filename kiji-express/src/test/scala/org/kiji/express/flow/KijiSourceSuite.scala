@@ -385,7 +385,6 @@ class KijiSourceSuite extends KijiSuite {
       table.getURI().toString()
     }
 
-
     def validateVersionCount(outputBuffer: Buffer[(Int, Int)]) {
       val outMap = outputBuffer.toMap
       // There should be two rows with 2 returned versions
@@ -790,6 +789,49 @@ class KijiSourceSuite extends KijiSuite {
     // Run the test in hadoop mode.
     jobTest.runHadoop.finish
   }
+
+
+  test("A job runs in local mode using an output spec with a specific schema.") {
+    // URI of the Kiji table to use.
+    val uri: String = doAndRelease(makeTestKijiTable(avroLayout)) { table: KijiTable =>
+      table.getURI().toString()
+    }
+
+    // Create input from Kiji table.
+    val tableInput: List[(EntityId, Seq[FlowCell[SimpleRecord]])] = List(
+      ( EntityId("0row"), slice("family:simple", (0L, SimpleRecord.newBuilder
+          .setL(0L)
+          .setS("hi")
+          .build)) ))
+
+    def validateOutput(outputBuffer: Buffer[(String)]): Unit = {
+      println(outputBuffer)
+    }
+
+    @transient val inputSpec = QualifiedColumnInputSpec.builder
+        .withFamily("family")
+        .withQualifier("simple")
+        .withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
+
+    @transient val outputSpec = QualifiedColumnOutputSpec.builder.
+      withFamily("family").
+      withQualifier("simple").
+      withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
+
+    val jobTest = JobTest(new SpecificSchemaIdentityJob(_))
+      .arg("table", uri)
+      .source(KijiInput.builder
+          .withTableURI(uri)
+          .withColumnSpecs(inputSpec -> 'simpleRecord)
+          .build, tableInput)
+      .sink(KijiOutput.builder
+          .withTableURI(uri)
+          .withColumnSpecs('simpleRecordHead -> outputSpec)
+          .build)(validateOutput)
+
+      jobTest.run.finish
+      jobTest.runHadoop.finish
+  }
 }
 
 /** Companion object for KijiSourceSuite. Contains test jobs. */
@@ -1090,6 +1132,29 @@ object KijiSourceSuite {
         .discard('entityId)
         .joinWithSmaller('terms -> 'line, sidePipe)
         .write(Tsv(args("output")))
+  }
+
+  class SpecificSchemaIdentityJob(args: Args) extends KijiJob(args) {
+    @transient val inputSpec = QualifiedColumnInputSpec.builder
+      .withFamily("family")
+      .withQualifier("simple")
+      .withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
+
+    @transient val outputSpec = QualifiedColumnOutputSpec.builder.
+      withFamily("family").
+      withQualifier("simple").
+      withSchemaSpec(SchemaSpec.Specific(classOf[SimpleRecord])).build
+
+    KijiInput.builder
+      .withTableURI(args("table"))
+      .withColumnSpecs(inputSpec -> 'simpleRecord)
+      .build
+      .map('simpleRecord -> 'simpleRecordHead) { records: Seq[FlowCell[SimpleRecord]] =>
+          records.head.datum }
+      .write(KijiOutput.builder
+          .withTableURI(args("table"))
+          .withColumnSpecs('simpleRecordHead -> outputSpec)
+          .build)
   }
 }
 
