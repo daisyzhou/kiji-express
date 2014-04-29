@@ -439,7 +439,7 @@ object KijiScheme {
                       entry.getTimestamp,
                       AvroUtil.avroToScala(entry.getValue))
             }
-          }
+          } // TODO(REMOVE) maybe register TransientStream connections with the KijiScheme here?
           result.add(new TransientStream(genItr))
         }
       }

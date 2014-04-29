@@ -36,7 +36,7 @@ import cascading.tap.Tap
 import cascading.tuple.collect.SpillableProps
 import com.google.common.base.Preconditions
 import com.twitter.chill.config.ConfiguredInstantiator
-import com.twitter.chill.config.ScalaMapConfig
+import com.twitter.chill.config.ScalaAnyRefMapConfig
 import com.twitter.scalding.Args
 import com.twitter.scalding.HadoopTest
 import com.twitter.scalding.Hdfs
@@ -176,7 +176,7 @@ class KijiJob(args: Args)
         AggregateBy.AGGREGATE_BY_THRESHOLD -> defaultSpillThreshold.toString
     )
     // Set up the keys for chill
-    val chillConf = ScalaMapConfig(lowPriorityDefaults)
+    val chillConf = ScalaAnyRefMapConfig(lowPriorityDefaults)
     ConfiguredInstantiator.setReflect(chillConf, classOf[KijiKryoInstantiator])
 
     // Append all the new keys.
