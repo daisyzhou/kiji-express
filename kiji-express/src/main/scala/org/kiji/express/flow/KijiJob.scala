@@ -25,6 +25,7 @@ import scala.collection.JavaConverters.mapAsScalaMapConverter
 import java.util.Properties
 
 import cascading.flow.Flow
+import cascading.flow.FlowListener
 import cascading.flow.hadoop.util.HadoopUtil
 import cascading.pipe.Checkpoint
 import cascading.pipe.Pipe
@@ -47,6 +48,7 @@ import org.apache.hadoop.security.UserGroupInformation
 import org.kiji.annotations.ApiAudience
 import org.kiji.annotations.ApiStability
 import org.kiji.annotations.Inheritance
+import org.kiji.express.flow.KijiJob.CounterListener
 import org.kiji.express.flow.framework.KijiTap
 import org.kiji.express.flow.framework.LocalKijiTap
 import org.kiji.express.flow.framework.hfile.HFileFlowStepStrategy
@@ -172,5 +174,36 @@ class KijiJob(args: Args)
     baseConfig
         .++(chillConf.toMap)
         .+("mapred.child.java.opts" -> (oldJavaOptions + disableValidation))
+  }
+
+  private[express] def counters: Set[(String, String, Long)] = {
+    listeners.collect {
+      case cl: CounterListener => cl.counters
+    }.headOption.getOrElse(Set())
+  }
+
+  override def listeners: List[FlowListener] = {
+    new CounterListener :: super.listeners
+  }
+}
+
+object KijiJob {
+  private[express] class CounterListener extends FlowListener {
+    private var _counters: Set[(String, String, Long)] = Set()
+    def counters: Set[(String, String, Long)] = _counters
+
+    override def onStopping(flow: Flow[_]): Unit = { }
+
+    override def onStarting(flow: Flow[_]): Unit = { }
+
+    override def onThrowable(flow: Flow[_], throwable: Throwable): Boolean = false
+
+    override def onCompleted(flow: Flow[_]): Unit = {
+      _counters = flow.getFlowStats.getCounterGroups.asScala.toSet.flatMap {
+        group: String => flow.getFlowStats.getCountersFor(group).asScala.map {
+          counter: String => (group, counter, flow.getFlowStats.getCounterValue(group, counter))
+        }
+      }
+    }
   }
 }
