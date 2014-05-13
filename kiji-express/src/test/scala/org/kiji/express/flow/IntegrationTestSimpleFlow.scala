@@ -100,35 +100,9 @@ class IntegrationTestSimpleFlow extends AbstractKijiIntegrationTest {
                         .withQualifier("name").withValue("name2")
                         .withQualifier("email").withValue("email2")
             .build().release()
-
-        class Job(args: Args) extends KijiJob(args) {
-          val stat: Stat = Stat("name", "counter")
-
-          KijiInput.builder
-              .withTableURI(table.getURI.toString)
-              .withColumns("info:email" -> 'email)
-              .build
-              .groupAll { group => stat.inc; group.size() }
-              .debug
-              .write(NullSource)
-
-          override def listeners: List[FlowListener] = {
-            val statListener: FlowListener = new FlowListener {
-              override def onStopping(flow: Flow[_]): Unit = {}
-
-              override def onStarting(flow: Flow[_]): Unit = {}
-
-              override def onThrowable(flow: Flow[_], throwable: Throwable): Boolean = false
-
-              override def onCompleted(flow: Flow[_]): Unit = {
-                val stats = flow.getFlowStats.getCounterValue("counter", "name")
-                println("found stats: %s".format(stats))
-              }
-            }
-            statListener :: super.listeners
-          }
-        }
-        val args = Mode.putMode(Hdfs(false, conf = new JobConf(getConf)), Args(List()))
+        val args = Mode.putMode(
+          Hdfs(false, conf = new JobConf(getConf)),
+          Args("--tableURI %s".format(table.getURI().toString)))
 
 
 //        val c = new JobConf(getConf)
@@ -146,7 +120,7 @@ class IntegrationTestSimpleFlow extends AbstractKijiIntegrationTest {
 
 
 
-        val job: Job = new Job(args)
+        val job: IntegrationTestSimpleFlow.TestJob = new IntegrationTestSimpleFlow.TestJob(args)
         Assert.assertTrue(job.counters.isEmpty)
         Assert.assertTrue(job.run)
         println(job.counters)
@@ -155,6 +129,38 @@ class IntegrationTestSimpleFlow extends AbstractKijiIntegrationTest {
       }
     } finally {
       kiji.release()
+    }
+  }
+}
+
+object IntegrationTestSimpleFlow {
+
+  class TestJob(args: Args) extends KijiJob(args) {
+    val stat: Stat = Stat("name", "counter")
+
+    KijiInput.builder
+      .withTableURI(args("tableURI"))
+      .withColumns("info:email" -> 'email)
+      .build
+      .groupAll { group =>
+          group.reduce('email -> 'size) { (acc: Int, next: Int) => stat.inc; acc +1 } }
+      .debug
+      .write(NullSource)
+
+    override def listeners: List[FlowListener] = {
+      val statListener: FlowListener = new FlowListener {
+        override def onStopping(flow: Flow[_]): Unit = {}
+
+        override def onStarting(flow: Flow[_]): Unit = {}
+
+        override def onThrowable(flow: Flow[_], throwable: Throwable): Boolean = false
+
+        override def onCompleted(flow: Flow[_]): Unit = {
+          val stats = flow.getFlowStats.getCounterValue("counter", "name")
+          println("found stats: %s".format(stats))
+        }
+      }
+      statListener :: super.listeners
     }
   }
 }
