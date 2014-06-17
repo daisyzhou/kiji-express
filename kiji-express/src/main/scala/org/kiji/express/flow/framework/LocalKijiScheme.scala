@@ -246,13 +246,6 @@ private[express] case class LocalKijiScheme(
   override def sourceCleanup(
       process: FlowProcess[Properties],
       sourceCall: SourceCall[InputContext, InputStream]) {
-    // TODO(REMOVE) remove these lines and add a hook at end of flow for local scheme? make sure
-    // TODO(cont) local mode test works in TransientStreamSuite
-    val context: InputContext = sourceCall.getContext
-    context.reader.close()
-    context.scanner.close()
-    // TODO(REMOVE) end lines to remove.
-
     // Set the context to null so that we no longer hold any references to it.
     sourceCall.setContext(null)
   }
